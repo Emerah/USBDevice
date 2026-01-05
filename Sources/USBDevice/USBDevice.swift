@@ -10,17 +10,18 @@
 import Foundation
 import IOUSBHost
 
-
-
-
-
+/// USB device wrapper around `IOUSBHostDevice`.
 public final class USBDevice: USBObject {
     
+    /// Concrete USB host handle type for this object.
     public typealias USBHandle = IOUSBHostDevice
     
+    /// Underlying IOUSBHost device handle.
     public let handle: IOUSBHostDevice
     private let metadata: MetaData
     
+    /// Creates a device wrapper and captures immutable metadata from the handle.
+    /// - Parameter handle: The underlying `IOUSBHostDevice`.
     public init(handle: IOUSBHostDevice) {
         self.handle = handle
         let metadata = Self.retrieveDeviceMetadata(from: handle)
@@ -29,8 +30,21 @@ public final class USBDevice: USBObject {
 }
 
 
+// MARK: - Matching dictionary
+/// Matching dictionary helpers for device discovery.
 extension USBDevice {
     
+    /// Creates a matching dictionary used to discover USB devices.
+    /// - Parameters:
+    ///   - vendorID: Optional vendor ID filter.
+    ///   - productID: Optional product ID filter.
+    ///   - bcdDevice: Optional BCD device version filter.
+    ///   - deviceClass: Optional device class filter.
+    ///   - deviceSubclass: Optional device subclass filter.
+    ///   - deviceProtocol: Optional device protocol filter.
+    ///   - speed: Optional device speed filter.
+    ///   - productIDs: Optional list of product IDs to match.
+    /// - Returns: A Core Foundation mutable dictionary for IOKit matching.
     public static func matchingDictionary(
         vendorID: Int? = nil,
         productID: Int? = nil,
@@ -66,8 +80,15 @@ extension USBDevice {
 }
 
 
+// MARK: - Configuration
+/// Configuration helpers for selecting the active device configuration.
 extension USBDevice {
     
+    /// Configures the device with the specified configuration value.
+    /// - Parameters:
+    ///   - value: The configuration value to select.
+    ///   - matchInterfaces: Whether to match and open interfaces after configuring.
+    /// - Throws: `USBHostError` if configuration fails.
     public func configure(value: Int, matchInterfaces: Bool) throws(USBHostError) {
         do {
             try handle.__configure(withValue: value, matchInterfaces: matchInterfaces)
@@ -76,17 +97,25 @@ extension USBDevice {
         }
     }
     
+    /// Configures the device with the specified configuration value.
+    /// - Parameter value: The configuration value to select.
+    /// - Throws: `USBHostError` if configuration fails.
     public func configure(value: Int) throws(USBHostError) {
         try configure(value: value, matchInterfaces: true)
     }
 }
 
+// MARK: - Device state
+/// Device descriptor access and reset helpers.
 extension USBDevice {
     
+    /// Current configuration descriptor for the active configuration, if available.
     public var currentConfigurationDescriptor: UnsafePointer<IOUSBConfigurationDescriptor>? {
         handle.configurationDescriptor
     }
     
+    /// Resets the device.
+    /// - Throws: `USBHostError` if the reset fails.
     public func reset() throws(USBHostError) {
         do {
             try handle.reset()
@@ -97,43 +126,56 @@ extension USBDevice {
 }
 
 
+// MARK: - Metadata
+/// Read-only metadata captured from the device at initialization.
 extension USBDevice {
+    /// Vendor ID from the device descriptor.
     public var vendorID: UInt16 {
         metadata.vendorID
     }
     
+    /// Product ID from the device descriptor.
     public var productID: UInt16 {
         metadata.productID
     }
     
+    /// Product name string, if available.
     public var name: String {
         metadata.name
     }
     
+    /// Manufacturer string, if available.
     public var manufacturer: String {
         metadata.manufacturer
     }
     
+    /// Serial number string, if available.
     public var serialNumber: String {
         metadata.serialNumber
     }
     
+    /// Number of interfaces in the current configuration.
     public var interfaceCount: UInt8 {
         metadata.interfaceCount
     }
     
+    /// Number of configurations supported by the device.
     public var configurationCount: UInt8 {
         metadata.configurationCount
     }
     
+    /// Current configuration value.
     public var currentConfigurationValue: UInt8 {
         metadata.currentConfigurationValue
     }
 }
 
 
+// MARK: - Metadata support
+/// Internal metadata capture from the device descriptors.
 extension USBDevice {
     
+    /// Immutable metadata extracted from the device and configuration descriptors.
     fileprivate struct MetaData {
         fileprivate let vendorID: UInt16
         fileprivate let productID: UInt16
@@ -156,6 +198,9 @@ extension USBDevice {
         )
     }
     
+    /// Retrieves device metadata from the provided handle.
+    /// - Parameter handle: The `IOUSBHostDevice` handle to inspect.
+    /// - Returns: Captured device metadata, or default values on failure.
     private static func retrieveDeviceMetadata(from handle: IOUSBHostDevice) -> MetaData {
         guard
             let deviceDescriptor = handle.deviceDescriptor,
