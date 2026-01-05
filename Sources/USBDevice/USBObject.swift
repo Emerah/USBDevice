@@ -11,7 +11,7 @@ import Foundation
 import IOUSBHost
 
 
-/// Common USB handle surface shared by device, interface, and pipe types.
+/// Common USB handle surface shared by device, interface types.
 public protocol USBObject {
     associatedtype USBHandle: IOUSBHostObject
     /// Underlying IOUSBHost handle for the object instance.
