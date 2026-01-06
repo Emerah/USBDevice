@@ -19,6 +19,8 @@ public final class USBDevice: USBObject {
     /// Underlying IOUSBHost device handle.
     public let handle: IOUSBHostDevice
     private let metadata: MetaData
+    private let interfaceCacheQueue = DispatchQueue(label: "usbdevice.interfacesCache")
+    private var interfaces: [InterfaceSelection: USBInterface] = [:]
     
     /// Creates a device wrapper and captures immutable metadata from the handle.
     /// - Parameter handle: The underlying `IOUSBHostDevice`.
@@ -95,6 +97,10 @@ extension USBDevice {
         } catch {
             throw USBHostError.translated(error)
         }
+        
+        if matchInterfaces {
+            clearInterfaceCache()
+        }
     }
     
     /// Configures the device with the specified configuration value.
@@ -122,6 +128,8 @@ extension USBDevice {
         } catch {
             throw USBHostError.translated(error)
         }
+        
+        clearInterfaceCache()
     }
 }
 
@@ -241,4 +249,125 @@ extension USBDevice {
             currentConfigurationValue: currentConfigurationValue
         )
     }
+}
+
+
+// MARK: - Request interface
+/// Interface discovery and caching helpers for this device.
+extension USBDevice {
+    
+    /// Cache key identifying a specific interface/alternate-setting pair.
+    private struct InterfaceSelection: Hashable, Sendable {
+        private let interfaceNumber: UInt8
+        private let alternateSetting: UInt8
+        fileprivate init(interfaceNumber: UInt8, alternateSetting: UInt8) {
+            self.interfaceNumber = interfaceNumber
+            self.alternateSetting = alternateSetting
+        }
+    }
+    
+    /// Returns the IOKit service for the specified interface number.
+    /// - Parameter number: The interface number to locate.
+    /// - Returns: A retained `io_service_t` for the interface.
+    /// - Throws: `USBHostError` if no matching interface is found.
+    private func serviceForInterface(number: UInt8) throws -> io_service_t {
+        var iterator = io_iterator_t()
+        let status = IORegistryEntryGetChildIterator(ioService, kIOServicePlane, &iterator)
+        guard status == KERN_SUCCESS, iterator != IO_OBJECT_NULL else {
+            throw USBHostError.translated(status: status)
+        }
+        
+        defer { IOObjectRelease(iterator) }
+        
+        while case let service = IOIteratorNext(iterator), service != IO_OBJECT_NULL {
+            if IOObjectConformsTo(service, kIOUSBHostInterfaceClassName) != 0,
+               isValidInterface(service, interfaceNumber: number) {
+                return service
+            }
+            
+            IOObjectRelease(service)
+        }
+        
+        throw USBHostError.invalid
+    }
+    
+    /// Validates that an interface service matches the requested number and configuration.
+    /// - Parameters:
+    ///   - service: The `io_service_t` to inspect.
+    ///   - interfaceNumber: The interface number to match.
+    /// - Returns: `true` if the service matches the current configuration and interface number.
+    private func isValidInterface(_ service: io_service_t, interfaceNumber: UInt8) -> Bool {
+        guard
+            let number = propertyNumber(IOUSBHostMatchingPropertyKey.interfaceNumber.rawValue, service: service),
+            let configuration = propertyNumber(IOUSBHostMatchingPropertyKey.configurationValue.rawValue, service: service)
+        else {
+            return false
+        }
+        return number == interfaceNumber && configuration == metadata.currentConfigurationValue
+    }
+    
+    /// Returns a USB interface for the specified number and alternate setting.
+    /// - Parameters:
+    ///   - number: The interface number to open.
+    ///   - alternateSetting: The alternate setting to select after opening.
+    /// - Returns: The opened `USBInterface`.
+    /// - Throws: `USBHostError` if the interface cannot be opened or configured.
+    public func interface(_ number: UInt8, alternateSetting: UInt8 = 0) throws -> USBInterface {
+        let selection = InterfaceSelection(interfaceNumber: number, alternateSetting: alternateSetting)
+        if let cached = cachedInterface(for: selection) { return cached }
+        
+        let service = try serviceForInterface(number: number)
+        defer { IOObjectRelease(service) }
+        
+        let interfaceHandle = try IOUSBHostInterface(
+            __ioService: service,
+            options: [.deviceSeize],
+            queue: queue,
+            interestHandler: nil
+        )
+        
+        let usbInterface = USBInterface(handle: interfaceHandle)
+        if alternateSetting != 0 {
+            try usbInterface.selectAlternateSetting(Int(alternateSetting))
+        }
+        store(interface: usbInterface, for: selection)
+        return usbInterface
+    }
+    
+    /// Reads a numeric property from an IOKit service.
+    /// - Parameters:
+    ///   - key: The IOKit registry property key.
+    ///   - service: The `io_service_t` to read from.
+    /// - Returns: The numeric value as `UInt8`, if available.
+    private func propertyNumber(_ key: String, service: io_service_t) -> UInt8? {
+        guard let value = IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
+        else { return nil }
+        
+        guard let number = value as? NSNumber
+        else { return nil }
+        
+        return number.uint8Value
+    }
+    
+    /// Returns a cached interface for the specified selection, if available.
+    private func cachedInterface(for key: InterfaceSelection) -> USBInterface? {
+        interfaceCacheQueue.sync {
+            interfaces[key]
+        }
+    }
+        
+    /// Stores an interface in the cache for the specified selection.
+    private func store(interface: USBInterface, for key: InterfaceSelection) {
+        interfaceCacheQueue.sync {
+            interfaces[key] = interface
+        }
+    }
+    
+    private func clearInterfaceCache() {
+      interfaceCacheQueue.sync {
+          interfaces.values.forEach { $0.destroy() }
+          interfaces.removeAll()
+      }
+  }
+    
 }
