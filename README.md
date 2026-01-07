@@ -66,18 +66,78 @@ At a high level, the flow is:
 2. Create a `USBDevice` or `USBDevice.USBInterface` from the handle.
 3. Use the wrapper APIs for metadata, control requests, or pipes.
 
-
-If you already know the vendor/product identifiers you care about, you can build matching dictionaries using the package helpers:
+Example using an `io_service_t` obtained from your IOKit discovery:
 
 ```swift
-let deviceMatch = USBDevice.matchingDictionary(vendorID: 0xXXXX, productID: 0xXXXX)
-let interfaceMatch = USBDevice.USBInterface.createMatchingDictionary(
-    vendorID: 0xXXXX,
-    productID: 0xXXXX,
-    interfaceClass: 0xXX
-)
-```
+// Assume `service` is an io_service_t for a USB device.
+let deviceHandle = try IOUSBHostDevice(__ioService: service, options: [], queue: DispatchQueue.main, interestHandler: nil)
+let device = USBDevice(handle: deviceHandle)
 
+let interface = try device.interface(0, alternateSetting: 0)
+let endpoint = try interface.copyPipe(address: 0x81)
+,,,
 
+## Public API overview
+
+### USBDevice
+
+- `handle`
+- `init(handle:)`
+- `matchingDictionary(vendorID:productID:bcdDevice:deviceClass:deviceSubclass:deviceProtocol:speed:productIDs:)`
+- `configure(value:matchInterfaces:)`
+- `configure(value:)`
+- `currentConfigurationDescriptor`
+- `reset()`
+- `vendorID`
+- `productID`
+- `name`
+- `manufacturer`
+- `serialNumber`
+- `interfaceCount`
+- `configurationCount`
+- `currentConfigurationValue`
+- `interface(_:alternateSetting:)`
+
+### USBDevice.USBInterface
+
+- `handle`
+- `createMatchingDictionary(vendorID:productID:bcdDevice:interfaceNumber:configurationValue:interfaceClass:interfaceSubClass:interfaceProtocol:speed:productIDArray:)`
+- `idleTimeout`
+- `setIdleTimeout(_:)`
+- `configurationDescriptor`
+- `interfaceDescriptor`
+- `selectAlternateSetting(_:)`
+- `copyPipe(address:)`
+- `name`
+- `endpointCount`
+- `interfaceNumber`
+- `alternateSetting`
+
+### USBDevice.USBInterface.USBEndpoint
+
+- `originalDescriptors`
+- `descriptors`
+- `hostInterface`
+- `adjust(descriptors:)`
+- `idleTimeout`
+- `setIdleTimeout(_:)`
+- `clearStall()`
+- `abort(option:)`
+- `sendControlRequest(_:data:timeout:)`
+- `enqueueControlRequest(_:data:timeout:completion:)`
+- `enqueueControlRequest(_:data:timeout:)`
+- `sendIORequest(data:timeout:)`
+- `enqueueIORequest(data:timeout:completionHandler:)`
+- `enqueueIORequest(data:timeout:)`
+- `enableStreams()`
+- `disableStreams()`
+- `copyStream(streamID:)`
+- `endpointAddress`
+- `maxPacketSize`
+- `direction`
+- `transferType`
+- `pollInterval`
+- `USBEndpointDirection`
+- `USBEndpointTransferType`
 
 
