@@ -36,12 +36,12 @@ extension USBDevice.USBInterface {
 extension USBDevice.USBInterface.USBEndpoint {
 
     /// Original descriptors as reported by the device.
-    public var originalDescriptors: UnsafePointer<IOUSBHostIOSourceDescriptors>? {
+    public var originalDescriptors: UnsafePointer<IOUSBHostIOSourceDescriptors> {
         handle.originalDescriptors
     }
 
     /// Current descriptors for the pipe.
-    public var descriptors: UnsafePointer<IOUSBHostIOSourceDescriptors>? {
+    public var descriptors: UnsafePointer<IOUSBHostIOSourceDescriptors> {
         handle.descriptors
     }
 

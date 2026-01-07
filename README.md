@@ -66,6 +66,7 @@ At a high level, the flow is:
 2. Create a `USBDevice` or `USBDevice.USBInterface` from the handle.
 3. Use the wrapper APIs for metadata, control requests, or pipes.
 
+
 If you already know the vendor/product identifiers you care about, you can build matching dictionaries using the package helpers:
 
 ```swift

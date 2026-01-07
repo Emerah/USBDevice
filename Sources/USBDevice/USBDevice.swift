@@ -98,9 +98,7 @@ extension USBDevice {
             throw USBHostError.translated(error)
         }
         
-        if matchInterfaces {
-            clearInterfaceCache()
-        }
+        clearInterfaceCache()
     }
     
     /// Configures the device with the specified configuration value.
@@ -314,24 +312,33 @@ extension USBDevice {
     /// - Throws: `USBHostError` if the interface cannot be opened or configured.
     public func interface(_ number: UInt8, alternateSetting: UInt8 = 0) throws -> USBInterface {
         let selection = InterfaceSelection(interfaceNumber: number, alternateSetting: alternateSetting)
-        if let cached = cachedInterface(for: selection) { return cached }
         
-        let service = try serviceForInterface(number: number)
-        defer { IOObjectRelease(service) }
-        
-        let interfaceHandle = try IOUSBHostInterface(
-            __ioService: service,
-            options: [.deviceSeize],
-            queue: queue,
-            interestHandler: nil
-        )
-        
-        let usbInterface = USBInterface(handle: interfaceHandle)
-        if alternateSetting != 0 {
-            try usbInterface.selectAlternateSetting(Int(alternateSetting))
+        return try interfaceCacheQueue.sync {
+            if let cached = interfaces[selection] { return cached }
+            
+            let service = try serviceForInterface(number: number)
+            defer { IOObjectRelease(service) }
+            
+            let interfaceHandle = try IOUSBHostInterface(
+                __ioService: service,
+                options: [.deviceSeize],
+                queue: queue,
+                interestHandler: nil
+            )
+            
+            let usbInterface = USBInterface(handle: interfaceHandle)
+            do {
+                if alternateSetting != 0 {
+                    try usbInterface.selectAlternateSetting(Int(alternateSetting))
+                }
+            } catch {
+                usbInterface.destroy()
+                throw USBHostError.translated(error)
+            }
+            
+            interfaces[selection] = usbInterface
+            return usbInterface
         }
-        store(interface: usbInterface, for: selection)
-        return usbInterface
     }
     
     /// Reads a numeric property from an IOKit service.

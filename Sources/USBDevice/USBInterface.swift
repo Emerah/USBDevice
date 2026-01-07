@@ -23,7 +23,7 @@ extension USBDevice {
 
         /// Creates an interface wrapper and captures immutable metadata from the handle.
         /// - Parameter handle: The underlying `IOUSBHostInterface`.
-        public init(handle: IOUSBHostInterface) {
+        internal init(handle: IOUSBHostInterface) {
             self.handle = handle
             let metadata = Self.retrieveInterfaceMetadata(from: handle)
             self.metadata = metadata
@@ -133,12 +133,12 @@ extension USBDevice.USBInterface {
 
     /// Copies a pipe with the specified endpoint address.
     /// - Parameter address: The endpoint address to copy.
-    /// - Returns: The copied `IOUSBHostPipe` instance.
+    /// - Returns: `USBEndpoint` wrapping the copied `IOUSBHostPipe` instance .
     /// - Throws: `USBHostError` if the pipe cannot be copied.
-    public func copyPipe(address: UInt8) throws(USBHostError) -> IOUSBHostPipe {
+    public func copyPipe(address: UInt8) throws(USBHostError) -> USBEndpoint {
         do {
             let pipe = try handle.copyPipe(withAddress: Int(address))
-            return pipe
+            return USBEndpoint(handle: pipe)
         } catch {
             throw USBHostError.translated(error)
         }
