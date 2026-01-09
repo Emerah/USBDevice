@@ -29,6 +29,11 @@ public final class USBDevice: USBObject {
         let metadata = Self.retrieveDeviceMetadata(from: handle)
         self.metadata = metadata
     }
+    
+    public func destroy() {
+        clearInterfaceCache()
+        handle.destroy()
+    }
 }
 
 
