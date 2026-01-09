@@ -47,7 +47,7 @@ extension USBDevice {
     ///   - speed: Optional device speed filter.
     ///   - productIDs: Optional list of product IDs to match.
     /// - Returns: A Core Foundation mutable dictionary for IOKit matching.
-    public static func matchingDictionary(
+    public static func createMatchingDictionary(
         vendorID: Int? = nil,
         productID: Int? = nil,
         bcdDevice: Int? = nil,

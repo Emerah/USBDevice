@@ -135,7 +135,7 @@ extension USBDevice.USBInterface {
     /// - Parameter address: The endpoint address to copy.
     /// - Returns: `USBEndpoint` wrapping the copied `IOUSBHostPipe` instance .
     /// - Throws: `USBHostError` if the pipe cannot be copied.
-    public func copyPipe(address: UInt8) throws(USBHostError) -> USBEndpoint {
+    public func copyEndpoint(address: UInt8) throws(USBHostError) -> USBEndpoint {
         do {
             let pipe = try handle.copyPipe(withAddress: Int(address))
             return USBEndpoint(handle: pipe)

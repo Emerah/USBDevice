@@ -17,17 +17,91 @@ It is most appropriate for macOS utilities, diagnostics tools, or hardware-facin
 
 Represents a USB device handle and caches core device metadata (vendor/product IDs, strings, configuration counts). It also exposes configuration, reset, and descriptor helpers through shared APIs.
 
+- `handle`
+- `init(handle:)`
+- `createMatchingDictionary(vendorID:productID:bcdDevice:deviceClass:deviceSubclass:deviceProtocol:speed:productIDs:)`
+- `configure(value:matchInterfaces:)`
+- `configure(value:)`
+- `currentConfigurationDescriptor`
+- `reset()`
+- `vendorID`
+- `productID`
+- `name`
+- `manufacturer`
+- `serialNumber`
+- `interfaceCount`
+- `configurationCount`
+- `currentConfigurationValue`
+- `interface(_:alternateSetting:)`
+
 ### `USBDevice.USBInterface`
 
 Represents a device interface and caches interface metadata (name, interface number, alternate setting, endpoint count). It also provides helpers for alternate settings and pipe access.
+
+- `handle`
+- `createMatchingDictionary(vendorID:productID:bcdDevice:interfaceNumber:configurationValue:interfaceClass:interfaceSubClass:interfaceProtocol:speed:productIDArray:)`
+- `idleTimeout`
+- `setIdleTimeout(_:)`
+- `configurationDescriptor`
+- `interfaceDescriptor`
+- `selectAlternateSetting(_:)`
+- `copyEndpoint(address:)`
+- `name`
+- `endpointCount`
+- `interfaceNumber`
+- `alternateSetting`
 
 ### `USBDevice.USBInterface.USBEndpoint`
 
 Represents an endpoint pipe for data exchange. It exposes endpoint metadata (direction, transfer type, packet size) and wraps control/bulk/interrupt operations used internally by the package.
 
+- `originalDescriptors`
+- `descriptors`
+- `hostInterface`
+- `adjust(descriptors:)`
+- `idleTimeout`
+- `setIdleTimeout(_:)`
+- `clearStall()`
+- `abort(option:)`
+- `sendControlRequest(_:data:timeout:)`
+- `enqueueControlRequest(_:data:timeout:completion:)`
+- `enqueueControlRequest(_:data:timeout:) async`
+- `sendIORequest(data:timeout:)`
+- `enqueueIORequest(data:timeout:completionHandler:)`
+- `enqueueIORequest(data:timeout:) async`
+- `enableStreams()`
+- `disableStreams()`
+- `copyStream(streamID:)`
+- `endpointAddress`
+- `maxPacketSize`
+- `direction`
+- `transferType`
+- `pollInterval`
+- `USBEndpointDirection`
+- `USBEndpointTransferType`
+
 ### `USBObject`
 
 Shared protocol for common behaviors across device and interface types, including lifecycle management, descriptors, and control requests.
+
+- `handle`
+- `ioService`
+- `queue`
+- `destroy()`
+- `destroy(options:)`
+- `sendDeviceRequest(_:data:timeout:)`
+- `sendDeviceRequest(_:timeout:)`
+- `enqueueDeviceRequest(_:data:timeout:completion:)`
+- `enqueueDeviceRequest(_:data:timeout:)`
+- `abortDeviceRequests(option:)`
+- `descriptor(type:maxLength:index:languageID:requestType:requestRecipient:)`
+- `deviceDescriptor`
+- `capabilityDescriptors`
+- `configurationDescriptor(configurationValue:)`
+- `stringDescriptor(index:languageID:)`
+- `deviceAddress`
+- `currentFrameNumber`
+- `frameNumber(with:)`
 
 ### `USBHostError`
 
@@ -65,79 +139,3 @@ At a high level, the flow is:
 1. Discover a device or interface using `IOUSBHost` or IOKit.
 2. Create a `USBDevice` or `USBDevice.USBInterface` from the handle.
 3. Use the wrapper APIs for metadata, control requests, or pipes.
-
-Example using an `io_service_t` obtained from your IOKit discovery:
-
-```swift
-// Assume `service` is an io_service_t for a USB device.
-let deviceHandle = try IOUSBHostDevice(__ioService: service, options: [], queue: DispatchQueue.main, interestHandler: nil)
-let device = USBDevice(handle: deviceHandle)
-
-let interface = try device.interface(0, alternateSetting: 0)
-let endpoint = try interface.copyPipe(address: 0x81)
-,,,
-
-## Public API overview
-
-### USBDevice
-
-- `handle`
-- `init(handle:)`
-- `matchingDictionary(vendorID:productID:bcdDevice:deviceClass:deviceSubclass:deviceProtocol:speed:productIDs:)`
-- `configure(value:matchInterfaces:)`
-- `configure(value:)`
-- `currentConfigurationDescriptor`
-- `reset()`
-- `vendorID`
-- `productID`
-- `name`
-- `manufacturer`
-- `serialNumber`
-- `interfaceCount`
-- `configurationCount`
-- `currentConfigurationValue`
-- `interface(_:alternateSetting:)`
-
-### USBDevice.USBInterface
-
-- `handle`
-- `createMatchingDictionary(vendorID:productID:bcdDevice:interfaceNumber:configurationValue:interfaceClass:interfaceSubClass:interfaceProtocol:speed:productIDArray:)`
-- `idleTimeout`
-- `setIdleTimeout(_:)`
-- `configurationDescriptor`
-- `interfaceDescriptor`
-- `selectAlternateSetting(_:)`
-- `copyPipe(address:)`
-- `name`
-- `endpointCount`
-- `interfaceNumber`
-- `alternateSetting`
-
-### USBDevice.USBInterface.USBEndpoint
-
-- `originalDescriptors`
-- `descriptors`
-- `hostInterface`
-- `adjust(descriptors:)`
-- `idleTimeout`
-- `setIdleTimeout(_:)`
-- `clearStall()`
-- `abort(option:)`
-- `sendControlRequest(_:data:timeout:)`
-- `enqueueControlRequest(_:data:timeout:completion:)`
-- `enqueueControlRequest(_:data:timeout:)`
-- `sendIORequest(data:timeout:)`
-- `enqueueIORequest(data:timeout:completionHandler:)`
-- `enqueueIORequest(data:timeout:)`
-- `enableStreams()`
-- `disableStreams()`
-- `copyStream(streamID:)`
-- `endpointAddress`
-- `maxPacketSize`
-- `direction`
-- `transferType`
-- `pollInterval`
-- `USBEndpointDirection`
-- `USBEndpointTransferType`
-
-

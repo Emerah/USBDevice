@@ -185,12 +185,12 @@ extension USBObject {
     }
     
     /// Pointer to the device descriptor, if available.
-    public var deviceDescriptorPtr: UnsafePointer<IOUSBDeviceDescriptor>? {
+    public var deviceDescriptor: UnsafePointer<IOUSBDeviceDescriptor>? {
         handle.deviceDescriptor
     }
     
     /// Pointer to the BOS capability descriptors, if available.
-    public var capabilityDescriptorsPtr: UnsafePointer<IOUSBBOSDescriptor>? {
+    public var capabilityDescriptors: UnsafePointer<IOUSBBOSDescriptor>? {
         handle.capabilityDescriptors
     }
     
