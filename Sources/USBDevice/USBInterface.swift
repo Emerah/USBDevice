@@ -28,6 +28,20 @@ extension USBDevice {
             let metadata = Self.retrieveInterfaceMetadata(from: handle)
             self.metadata = metadata
         }
+        
+        internal convenience init(
+            service: io_service_t,
+            options: IOUSBHostObjectInitOptions,
+            queue: DispatchQueue?,
+            interestHandler: IOUSBHostInterestHandler?
+        ) throws(USBHostError) {
+            do {
+                let handle = try IOUSBHostInterface(__ioService: service, options: options, queue: queue, interestHandler: interestHandler)
+                self.init(handle: handle)
+            } catch {
+                throw USBHostError.translated(error)
+            }
+        }
     }
 }
 

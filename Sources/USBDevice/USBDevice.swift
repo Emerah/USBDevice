@@ -30,6 +30,20 @@ public final class USBDevice: USBObject {
         self.metadata = metadata
     }
     
+    public convenience init(
+        service: io_service_t,
+        options: IOUSBHostObjectInitOptions,
+        queue: DispatchQueue?,
+        interestHandler: IOUSBHostInterestHandler?
+    ) throws(USBHostError) {
+        do {
+            let handle = try IOUSBHostDevice(__ioService: service, options: options, queue: queue, interestHandler: interestHandler)
+            self.init(handle: handle)
+        } catch {
+            throw USBHostError.translated(error)
+        }
+    }
+    
     public func destroy() {
         clearInterfaceCache()
         handle.destroy()
@@ -375,6 +389,7 @@ extension USBDevice {
         }
     }
     
+    /// closes open interfaces and clears interface cache.
     private func clearInterfaceCache() {
       interfaceCacheQueue.sync {
           interfaces.values.forEach { $0.destroy() }
