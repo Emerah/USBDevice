@@ -11,6 +11,40 @@ Use this package when you need to:
 
 It is most appropriate for macOS utilities, diagnostics tools, or hardware-facing apps that already rely on `IOUSBHost` and want a cleaner Swift surface for device, interface, and endpoint access.
 
+## Installation
+
+Add the package to your `Package.swift` dependencies using its Git URL:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/Emerah/USBDevice.git", branch: "main")
+]
+```
+
+Then include `USBDevice` in your target dependencies:
+
+```swift
+targets: [
+    .target(
+        name: "YourTarget",
+        dependencies: ["USBDevice"]
+    )
+]
+```
+
+## Usage
+
+The package wraps USB device and interface handles you already obtain from your discovery flow, then provides a cleaner Swift surface for metadata, control requests, and pipe access.
+
+If you need discovery and hot-plug handling, see `USBConnection` at `https://github.com/Emerah/USBConnection.git`, which provides a service to obtain device `io_service_t` handles.
+
+At a high level, the flow is:
+
+1. Discover a device or interface using `IOUSBHost` or IOKit.
+2. Create a `USBDevice` or `USBDevice.USBInterface` from the handle.
+3. Use the wrapper APIs for metadata, control requests, or pipes.
+
+
 ## Package Types
 
 ### `USBDevice`
@@ -107,35 +141,75 @@ Shared protocol for common behaviors across device and interface types, includin
 
 Typed error wrapper for `IOReturn` values, enabling predictable error handling in Swift.
 
-## Installation
+## Examples
 
-Add the package to your `Package.swift` dependencies using its Git URL:
-
-```swift
-dependencies: [
-    .package(url: "https://github.com/Emerah/USBDevice.git", branch: "main")
-]
-```
-
-Then include `USBDevice` in your target dependencies:
+1) Initialize a `USBDevice`:
 
 ```swift
-targets: [
-    .target(
-        name: "YourTarget",
-        dependencies: ["USBDevice"]
+import USBDevice
+import IOUSBHost
+
+do {
+    // From an IOUSBHostDevice handle created from an io_service_t.
+    let handle = try IOUSBHostDevice(
+        __ioService: 1234,
+        options: [], // .deviceCapture | .deviceSeize
+        queue: nil, 
+        interestHandler: nil // (IOUSBHostObject, UInt32, UnsafeMutableRawPointer?) -> Void
     )
-]
+    let deviceFromHandle = USBDevice(handle: handle)
 ```
 
-## Usage
+```swift
+import USBDevice
+import IOUSBHost
 
-The package wraps USB device and interface handles you already obtain from your discovery flow, then provides a cleaner Swift surface for metadata, control requests, and pipe access.
+    // From an io_service_t (placeholder value) with explicit options/queue/handler.
+    let deviceFromService = try USBDevice(
+        service: 1234,
+        options: [], // .deviceCapture | .deviceSeize
+        queue: nil,
+        interestHandler: nil // (IOUSBHostObject, UInt32, UnsafeMutableRawPointer?) -> Void
+    )
+} catch {
+    // Handle or surface the error as appropriate for your app.
+}
+```
 
-If you need discovery and hot-plug handling, see `USBConnection` at `https://github.com/Emerah/USBConnection.git`, which provides a service to obtain device `io_service_t` handles.
+2) Request a specific interface from the device:
 
-At a high level, the flow is:
+```swift
+import USBDevice
 
-1. Discover a device or interface using `IOUSBHost` or IOKit.
-2. Create a `USBDevice` or `USBDevice.USBInterface` from the handle.
-3. Use the wrapper APIs for metadata, control requests, or pipes.
+do {
+    let interface = try device.interface(1, alternateSetting: 0)
+} catch {
+    // Handle or surface the error as appropriate for your app.
+}
+```
+
+3) Initialize a `USBEndpoint` from an interface:
+
+```swift
+import USBDevice
+
+do {
+    let endpoint = try interface.copyEndpoint(address: 0x81)
+} catch {
+    // Handle or surface the error as appropriate for your app.
+}
+```
+
+4) Send an I/O request to the device using an endpoint:
+
+```swift
+import USBDevice
+import Foundation
+
+do {
+    let buffer = NSMutableData(length: 64)
+    let bytesTransferred = try endpoint.sendIORequest(data: buffer, timeout: 1.0)
+} catch {
+    // Handle or surface the error as appropriate for your app.
+}
+```

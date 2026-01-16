@@ -10,6 +10,9 @@
 import Foundation
 import IOUSBHost
 
+
+// TODO: - ADD IOMessage translation to handle interest notifications
+
 /// USB device wrapper around `IOUSBHostDevice`.
 public final class USBDevice: USBObject {
     
